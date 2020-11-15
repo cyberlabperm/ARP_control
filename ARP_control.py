@@ -73,14 +73,7 @@ def arp_handler(pkt):
             log.write(f'{event_time} {host} alert ARP-spoofing detected from {MAC}')        
 
         return f'{event_time} {host} alert ARP-spoofing detected from {MAC}'
-
-#method for log analysis with ARP_DB
-def add_host_to_table():
-    for IP in arp_table:
-        MAC = arp_table.get(IP)       
-        hostname = select_host_from_db()
-        arp_table[IP].append(hostname)
-        
+                
 #DB / file methods for preload mode
 def initialize_local_db():
     conn = sqlite3.connect(db_folder+db_name) 
