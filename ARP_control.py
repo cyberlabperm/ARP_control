@@ -108,10 +108,6 @@ def select_host_from_db(MAC):
     hostname = cur.fetchone()
     return hostname 
     
-#method to get MAC for HOST from DB
-
-
-
 #programm example
 if mode == 'live':
     print(f'Scaning local {network}')
