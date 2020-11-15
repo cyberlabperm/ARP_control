@@ -13,4 +13,10 @@ Startup configs via config.ini
             preload - load arp table from DB > scan $network > control ARP traffic
             config - python shell
  
+ How to setup DB?
+ Use python shell to create DB with initialize_local_db()
+ This will create DB file and TABLE with following format (net_address, MAC address, hostname)
+ net_address - IP address if statis, dhcp if host use DHCP-server
+ MAC address - in 'FF:FF:FF:FF:FF:FF' format
+ hostname - just str format, it can be domain, example cyberlab.local
  
