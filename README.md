@@ -15,7 +15,7 @@ Startup configs via config.ini
             config - python shell
  
  How to setup DB?
- Use python shell to create DB with initialize_local_db()
+ Use python shell to create DB with initialize_local_db(). For MYSQL you need to create DB, user and grant him access before this step.
  This will create DB file and TABLE with following format (net_address, MAC address, hostname)
  net_address - IP address if statis, dhcp if host use DHCP-server
  MAC address - in 'FF:FF:FF:FF:FF:FF' format

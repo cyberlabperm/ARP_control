@@ -30,7 +30,10 @@ arp_table = dict()
 #method to scan network configuration and create IP-MAC-HOST table
 def arp_scan(network, iface):
     assert isinstance(network, str), 'example 192.168.0.0/24'
-    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=network), iface = iface, timeout = 5)
+    if len(iface) != 0:
+        ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=network), iface = iface, timeout = 5)
+    else:
+        ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=network), timeout = 5)
     for pkt in ans:
         IP = pkt[1].psrc
         MAC = pkt[1].src 
@@ -86,31 +89,34 @@ def connect_to_db():
     elif use_db == 'mysql':
         conn = pymysql.connect(host=mysql_server, user=mysql_user, password=mysql_password, db = mysql_db)
     elif use_db == 'sqlite3':
-        conn = sqlite3.connect(db_folder+db_name)
-    cursor = conn.cursor()
-    return cursor
+        conn = sqlite3.connect(db_folder+db_name)    
+    return conn
 
 def initialize_local_db():
-    cursor = connect_to_db()
+    conn = connect_to_db()
+    cursor = conn.cursor()
     db_cmd = "CREATE TABLE IF NOT EXISTS hosts (basic_net TEXT, mac TEXT, hostname TEXT)"
     cursor.execute(db_cmd)
     conn.commit()
 
 def insert_hosts(hosts:list):
-    cursor = connect_to_db()
+    conn = connect_to_db()
+    cursor = conn.cursor()
     for host in hosts:
         cmd = f"INSERT INTO hosts (basic_net, MAC, hostname) VALUES ('{str(host[0])}', '{str(host[1])}', '{str(host[2])}');"
         cursor.execute(cmd)
     conn.commit()    
 
 def insert_host_in_db(net,MAC,hostname):
-    cursor = connect_to_db()
+    conn = connect_to_db()
+    cursor = conn.cursor()
     cmd = f"INSERT INTO hosts (basic_net, MAC, hostname) VALUES ('{str(net)}', '{str(MAC)}', '{str(hostname)}');"
     cursor.execute(cmd)
     conn.commit()
 
 def select_host_from_db(MAC):
-    cursor = connect_to_db()
+    conn = connect_to_db()
+    cursor = conn.cursor()
     db_req = f'SELECT hostname FROM hosts WHERE mac="{MAC}";'    
     cursor.execute(db_req)
     hostname = cursor.fetchone()
