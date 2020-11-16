@@ -1,33 +1,36 @@
 #ARP-control-server © 2020, cyberlabperm
 #Released under GNU GPL v3 license 
-from scapy.all import srp, Ether, ARP, sniff, wrpcap, PcapReader
-import sqlite3, time
+from scapy.all import srp, sniff, wrpcap, Ether, ARP
+import time, configparser
 
 #load configuration
-config = open('config.ini', 'r')
-for line in config:
-    if line[0] != '#':
-        if 'network' in line:
-            network = line[line.index('=')+2:len(line)-1]
-        elif 'pcap_folder' in line:
-            pcap_folder = line[line.index('=')+2:len(line)-1]
-        elif 'log_folder' in line:
-            log_folder = line[line.index('=')+2:len(line)-1]
-        elif 'db_folder' in line:
-            db_folder = line[line.index('=')+2:len(line)-1]
-        elif 'db_name' in line:
-            db_name = line[line.index('=')+2:len(line)-1]
-        elif 'run_mode' in line:
-            mode = line[line.index('=')+2:len(line)-1]
-config.close()
+config = configparser.ConfigParser()
+config.read("config.ini")
+network = config.get('MAIN', 'network')
+iface = config.get('MAIN', 'iface')
+pcap_folder = config.get('MAIN', 'pcap_folder')
+log_folder = config.get('MAIN', 'log_folder')
+mode = config.get('MAIN', 'mode')
+use_db = config.get('DB', 'use_db') 
+if use_db == 'mysql':
+    import pymysql
+    mysql_host = config.get('DB', 'mysql_host')
+    mysql_user =  config.get('DB', 'mysql_user')
+    mysql_password = config.get('DB', 'mysql_password')
+    mysql_db = config.get('DB', 'db_name')  
+elif use_db == 'sqlite3':
+    import sqlite3
+    db_folder = config.get('DB', 'db_folder')
+    db_name = config.get('DB', 'db_name')
+
 
 global arp_table
 arp_table = dict()
 
 #method to scan network configuration and create IP-MAC-HOST table
-def arp_scan(network):
+def arp_scan(network, iface):
     assert isinstance(network, str), 'example 192.168.0.0/24'
-    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=network),timeout=5)
+    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=network), iface = iface, timeout = 5)
     for pkt in ans:
         IP = pkt[1].psrc
         MAC = pkt[1].src 
@@ -49,9 +52,11 @@ def load_arp_table_from_db():
            arp_table[host[0]] = host[1] 
     
 #method for sniffing network and log arp
-def arp_filter():
-    sniff(filter='arp', prn=arp_handler)
-
+def arp_filter(iface):
+    if len(iface) != 0:
+        sniff(iface=iface,filter='arp', prn=arp_handler)
+    else:
+        sniff(filter='arp', prn=arp_handler)
 def arp_handler(pkt):
     IP = pkt.psrc
     MAC = pkt.src
@@ -76,7 +81,10 @@ def arp_handler(pkt):
                 
 #DB / file methods for preload mode
 def initialize_local_db():
-    conn = sqlite3.connect(db_folder+db_name) 
+    if use_db == 'mysql':
+        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password)
+    elif use_db == 'sqlite3':
+        conn = sqlite3.connect(db_folder+db_name)
     cursor = conn.cursor()
     cursor.execute("""CREATE TABLE IF NOT EXISTS hosts
                   (basic_net TEXT, mac TEXT,
@@ -85,7 +93,10 @@ def initialize_local_db():
     conn.commit()
 
 def insert_hosts(hosts:list):
-    conn = sqlite3.connect(db_folder+db_name)
+    if use_db == 'mysql':
+        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password, db = mysql_db)
+    elif use_db == 'sqlite3':
+        conn = sqlite3.connect(db_folder+db_name)
     cursor = conn.cursor()
     for host in hosts:
         cmd = f"INSERT INTO hosts (basic_net, MAC, hostname) VALUES ('{str(host[0])}', '{str(host[1])}', '{str(host[2])}');"
@@ -93,31 +104,37 @@ def insert_hosts(hosts:list):
     conn.commit()    
 
 def insert_host_in_db(net,MAC,hostname):
-    conn = sqlite3.connect(db_folder+db_name)
+    if use_db == 'mysql':
+        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password, db = mysql_db)
+    elif use_db == 'sqlite3':
+        conn = sqlite3.connect(db_folder+db_name)
     cursor = conn.cursor()
     cmd = f"INSERT INTO hosts (basic_net, MAC, hostname) VALUES ('{str(net)}', '{str(MAC)}', '{str(hostname)}');"
     cursor.execute(cmd)
     conn.commit()
 
 def select_host_from_db(MAC):
-    db = sqlite3.connect(db_folder+db_name)
-    db.row_factory = lambda cursor, row: row[0]
-    cur = db.cursor()
+    if use_db == 'mysql':
+        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password, db = mysql_db)
+    elif use_db == 'sqlite3':
+        conn = sqlite3.connect(db_folder+db_name)
+    conn.row_factory = lambda cursor, row: row[0]
+    cur = conn.cursor()
     db_req = f'SELECT hostname FROM hosts WHERE mac="{MAC}";'    
     cur.execute(db_req)
     hostname = cur.fetchone()
     return hostname 
     
-#programm example
+#programm __init__
 if mode == 'live':
     print(f'Scaning local {network}')
-    arp_scan(network)
+    arp_scan(network, iface)
     print('ARP-table ready. ARP-filter started')
-    arp_filter()
+    arp_filter(iface)
 elif mode == 'preload':
     load_arp_table_from_db()
-    arp_scan(network)       
+    arp_scan(network, iface)       
     print('ARP-table ready. ARP-filter started')
-    arp_filter()
+    arp_filter(iface)
 
 

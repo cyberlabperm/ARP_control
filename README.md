@@ -8,6 +8,7 @@ Startup configs via config.ini
   Windows: C:\Data\
   Linux: /var/log/
   Network: address/mask
+  iface: setup interface to list
   
   run_mode: live - scan $network > create arp table > control ARP traffic
             preload - load arp table from DB > scan $network > control ARP traffic
