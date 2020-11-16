@@ -14,10 +14,10 @@ mode = config.get('MAIN', 'mode')
 use_db = config.get('DB', 'use_db') 
 if use_db == 'mysql':
     import pymysql
-    mysql_host = config.get('DB', 'mysql_host')
+    mysql_server = config.get('DB', 'mysql_server')
     mysql_user =  config.get('DB', 'mysql_user')
     mysql_password = config.get('DB', 'mysql_password')
-    mysql_db = config.get('DB', 'db_name')  
+    mysql_db = config.get('DB', 'mysql_db')  
 elif use_db == 'sqlite3':
     import sqlite3
     db_folder = config.get('DB', 'db_folder')
@@ -80,50 +80,41 @@ def arp_handler(pkt):
         return f'{event_time} {host} alert ARP-spoofing detected from {MAC}'
                 
 #DB / file methods for preload mode
-def initialize_local_db():
-    if use_db == 'mysql':
-        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password)
+def connect_to_db():
+    if use_db == '0':
+        print('Error, there is no db setup in config')
+    elif use_db == 'mysql':
+        conn = pymysql.connect(host=mysql_server, user=mysql_user, password=mysql_password, db = mysql_db)
     elif use_db == 'sqlite3':
         conn = sqlite3.connect(db_folder+db_name)
     cursor = conn.cursor()
-    cursor.execute("""CREATE TABLE IF NOT EXISTS hosts
-                  (basic_net TEXT, mac TEXT,
-                   hostname TEXT)
-               """)
+    return cursor
+
+def initialize_local_db():
+    cursor = connect_to_db()
+    db_cmd = "CREATE TABLE IF NOT EXISTS hosts (basic_net TEXT, mac TEXT, hostname TEXT)"
+    cursor.execute(db_cmd)
     conn.commit()
 
 def insert_hosts(hosts:list):
-    if use_db == 'mysql':
-        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password, db = mysql_db)
-    elif use_db == 'sqlite3':
-        conn = sqlite3.connect(db_folder+db_name)
-    cursor = conn.cursor()
+    cursor = connect_to_db()
     for host in hosts:
         cmd = f"INSERT INTO hosts (basic_net, MAC, hostname) VALUES ('{str(host[0])}', '{str(host[1])}', '{str(host[2])}');"
         cursor.execute(cmd)
     conn.commit()    
 
 def insert_host_in_db(net,MAC,hostname):
-    if use_db == 'mysql':
-        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password, db = mysql_db)
-    elif use_db == 'sqlite3':
-        conn = sqlite3.connect(db_folder+db_name)
-    cursor = conn.cursor()
+    cursor = connect_to_db()
     cmd = f"INSERT INTO hosts (basic_net, MAC, hostname) VALUES ('{str(net)}', '{str(MAC)}', '{str(hostname)}');"
     cursor.execute(cmd)
     conn.commit()
 
 def select_host_from_db(MAC):
-    if use_db == 'mysql':
-        conn = pymysql.connect(host=mysql_host, user=mysql_user, password=mysql_password, db = mysql_db)
-    elif use_db == 'sqlite3':
-        conn = sqlite3.connect(db_folder+db_name)
-    conn.row_factory = lambda cursor, row: row[0]
-    cur = conn.cursor()
+    cursor = connect_to_db()
     db_req = f'SELECT hostname FROM hosts WHERE mac="{MAC}";'    
-    cur.execute(db_req)
-    hostname = cur.fetchone()
-    return hostname 
+    cursor.execute(db_req)
+    hostname = cursor.fetchone()
+    return hostname[0] 
     
 #programm __init__
 if mode == 'live':
