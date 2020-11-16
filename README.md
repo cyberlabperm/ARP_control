@@ -20,4 +20,3 @@ Startup configs via config.ini
  net_address - IP address if statis, dhcp if host use DHCP-server
  MAC address - in 'FF:FF:FF:FF:FF:FF' format
  hostname - just str format, it can be domain, example cyberlab.local
- 
