@@ -44,8 +44,8 @@ def arp_scan(network, iface):
 
 def load_arp_table_from_db():
     print('Waiting for initialize arp_table')
-    db = sqlite3.connect(db_folder+db_name)
-    cur = db.cursor()
+    conn = connect_to_db()
+    cur = conn.cursor()
     db_req = f'SELECT * FROM hosts;'    
     cur.execute(db_req)
     hosts = cur.fetchall()
